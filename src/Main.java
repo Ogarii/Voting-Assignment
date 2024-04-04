@@ -2,6 +2,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.*;
+import java.net.*;
 import java.util.ArrayList;
 
 public class Main extends JFrame {
@@ -9,10 +11,13 @@ public class Main extends JFrame {
     private JButton voteButton;
     private char vote;
 
-    //
-
-
     private ArrayList<Character> receivedVotes;
+
+    // Socket variables
+    private ServerSocket serverSocket;
+    private Socket clientSocket;
+    private PrintWriter out;
+    private BufferedReader in;
 
     public Main() {
         setTitle("Election Vote Casting App");
@@ -33,6 +38,9 @@ public class Main extends JFrame {
                 // Determine winner and update status label
                 char winner = determineWinner();
                 statusLabel.setText("Winner: " + winner + " | Your Vote: " + vote);
+
+                // Send vote to connected clients via socket
+                sendVoteToClients(vote);
             }
         });
 
@@ -43,6 +51,36 @@ public class Main extends JFrame {
 
         add(panel);
         setVisible(true);
+
+        // Start the socket server
+        try {
+            serverSocket = new ServerSocket(5555); // Change port number if needed
+            System.out.println("Socket server started on port 5555");
+            acceptClients();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void acceptClients() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    clientSocket = serverSocket.accept();
+                    out = new PrintWriter(clientSocket.getOutputStream(), true);
+                    in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
+    private void sendVoteToClients(char vote) {
+        if (out != null) {
+            out.println(vote);
+        }
     }
 
     private char determineWinner() {
